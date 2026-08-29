@@ -1,123 +1,48 @@
 local function playerColision(player, enemys, map)
     local nextX = player.position[1] + player.velx
     local nextY = player.position[2] + player.vely
-    if nextX < 1 or nextX > #map[1] or nextY < 1 or nextY > #map then
-        player.velx = 0
-        player.vely = 0
-    elseif map[nextY][nextX] == 0 or map[nextY][nextX] == 1 then
-        player.velx = 0
-        player.vely = 0
+    if nextX < 1 or nextX > #map[1] or nextY < 1 or nextY > #map or map[nextY][nextX] == 0 or map[nextY][nextX] == 1 then
+        player.velx, player.vely = 0, 0
+        return
     end
-
     for _, enemy in ipairs(enemys) do
         if enemy.position[1] == nextX and enemy.position[2] == nextY then
-            player.velx = 0
-            player.vely = 0
+            player.velx, player.vely = 0, 0
+            return
         end
     end
 end
 
-local function enemyLook(player, enemys, lifes, state, playerStart, enemysStart, lvl)
-    for _, enemy in ipairs(enemys) do
-        if enemy.position[1] == player.position[1] and enemy.position[2] == player.position[2] then
-                if lifes > 1 then
-                    lifes = lifes - 1
-
-                    player.position[1] = playerStart[1]
-                    player.position[2] = playerStart[2]
-
-                    for index, _ in ipairs(enemys) do
-                        enemys[index].position[1] = enemysStart[index].position[1]
-                        enemys[index].position[2] = enemysStart[index].position[2]
-                        enemys[index].look = enemysStart[index].look
-                        enemys[index].lastPosition = enemysStart[index].lastPosition
-                    end
-                else
-                    state = "GameOver"
-                end
-        elseif enemy.look == "up" then
-            if enemy.position[1] == player.position[1] and (enemy.position[2] - 1) == player.position[2] then
-                if lifes > 1 then
-                    lifes = lifes - 1
-
-                    player.position[1] = playerStart[1]
-                    player.position[2] = playerStart[2]
-
-                    for index, _ in ipairs(enemys) do
-                        enemys[index].position[1] = enemysStart[index].position[1]
-                        enemys[index].position[2] = enemysStart[index].position[2]
-                        enemys[index].look = enemysStart[index].look
-                        enemys[index].lastPosition = enemysStart[index].lastPosition
-                    end
-                else
-                    state = "GameOver"
-                end
-            end
-        elseif enemy.look == "down" then
-            if enemy.position[1] == player.position[1] and (enemy.position[2] + 1) == player.position[2] then
-                if lifes > 1 then
-                    lifes = lifes - 1
-
-                    player.position[1] = playerStart[1]
-                    player.position[2] = playerStart[2]
-
-                    for index, _ in ipairs(enemys) do
-
-                        enemys[index].position[1] = enemysStart[index].position[1]
-                        enemys[index].position[2] = enemysStart[index].position[2]
-                        enemys[index].look = enemysStart[index].look
-                        enemys[index].lastPosition = enemysStart[index].lastPosition
-                    end
-                else
-                    state = "GameOver"
-                end
-            end
-        elseif enemy.look == "left" then
-            if (enemy.position[1] - 1) == player.position[1] and enemy.position[2] == player.position[2] then
-                if lifes > 1 then
-                    lifes = lifes - 1
-
-                    player.position[1] = playerStart[1]
-                    player.position[2] = playerStart[2]
-
-                    for index, _ in ipairs(enemys) do
-                        enemys[index].position[1] = enemysStart[index].position[1]
-                        enemys[index].position[2] = enemysStart[index].position[2]
-                        enemys[index].look = enemysStart[index].look
-                        enemys[index].lastPosition = enemysStart[index].lastPosition
-                    end
-                else
-                    state = "GameOver"
-                end
-            end
-        elseif enemy.look == "right" then
-            if (enemy.position[1] + 1) == player.position[1] and enemy.position[2] == player.position[2] then
-                if lifes > 1 then
-                    lifes = lifes - 1
-
-                    player.position[1] = playerStart[1]
-                    player.position[2] = playerStart[2]
-
-                    for index, _ in ipairs(enemys) do
-                        enemys[index].position[1] = enemysStart[index].position[1]
-                        enemys[index].position[2] = enemysStart[index].position[2]
-                        enemys[index].look = enemysStart[index].look
-                        enemys[index].lastPosition = enemysStart[index].lastPosition
-                    end
-                else
-                    state = "GameOver"
-                end
-            end
-        end
-    end
-
-    return lifes, state, player, enemys, lvl
-
+local function enemyCanSeePlayer(enemy, player)
+    local dx = player.position[1] - enemy.position[1]
+    local dy = player.position[2] - enemy.position[2]
+    return (dx == 0 and dy == 0)
+        or (enemy.look == "up" and dx == 0 and dy == -1)
+        or (enemy.look == "down" and dx == 0 and dy == 1)
+        or (enemy.look == "left" and dx == -1 and dy == 0)
+        or (enemy.look == "right" and dx == 1 and dy == 0)
 end
 
+local function resetPositions(player, enemies, playerStart, enemyStarts)
+    player.position[1], player.position[2] = playerStart[1], playerStart[2]
+    for index, enemy in ipairs(enemies) do
+        local start = enemyStarts[index]
+        enemy.position[1], enemy.position[2] = start.position[1], start.position[2]
+        enemy.look = start.look
+        enemy.lastPosition = { start.lastPosition[1], start.lastPosition[2], start.lastPosition[3] }
+    end
+end
 
+local function enemyLook(player, enemies, lifes, state, playerStart, enemyStarts)
+    for _, enemy in ipairs(enemies) do
+        if enemyCanSeePlayer(enemy, player) then
+            if lifes <= 1 then return lifes, "GameOver" end
+            lifes = lifes - 1
+            resetPositions(player, enemies, playerStart, enemyStarts)
+            break
+        end
+    end
+    return lifes, state
+end
 
-return {
-    playerColision = playerColision,
-    enemyLook = enemyLook
-}
+return { playerColision = playerColision, enemyLook = enemyLook }
